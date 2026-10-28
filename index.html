@@ -1,0 +1,1848 @@
+<!--
+EarlScripter
+Project: Itlog ni JunPaul
+Description: Google Apps Script SPA frontend for an egg selling system with dashboard, POS, inventory, reports, and role-based access.
+-->
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Itlog ni JunPaul</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.12.4.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <style>
+    :root {
+      --navy-900: #0b1f3a;
+      --navy-800: #123d6d;
+      --navy-700: #1b5394;
+      --navy-500: #2e73b8;
+      --navy-100: #e9f2ff;
+      --bg: #edf3fb;
+      --card: #ffffff;
+      --card-alt: #f7faff;
+      --text: #1e2a3a;
+      --muted: #66758a;
+      --line: #dfe9f5;
+      --green: #1faa6c;
+      --amber: #efb73e;
+      --red: #e45b5b;
+      --purple: #7a56d7;
+      --shadow: 0 12px 28px rgba(11, 31, 58, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text); scroll-behavior: auto !important; overflow-anchor: none; }
+    body { min-height: 100vh; }
+    button, input, select { font: inherit; }
+    a { color: inherit; text-decoration: none; }
+
+    .hide { display: none !important; }
+
+    .app-shell {
+      display: flex;
+      min-height: 100vh;
+      background: linear-gradient(145deg, #dfefff 0%, #edf3fb 30%, #f7faff 100%);
+    }
+
+    .sidebar {
+      width: 250px;
+      background: linear-gradient(180deg, var(--navy-900), var(--navy-800));
+      color: #fff;
+      padding: 18px 14px;
+      position: sticky;
+      top: 0;
+      min-height: 100vh;
+      transition: width 0.2s ease;
+      box-shadow: var(--shadow);
+      z-index: 20;
+    }
+
+    .sidebar.collapsed { width: 88px; }
+    .sidebar.collapsed .nav-label, .sidebar.collapsed .brand-text, .sidebar.collapsed .user-meta { display: none; }
+    .sidebar.collapsed .nav button { justify-content: center; }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 10px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      margin-bottom: 18px;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #f7c96d, #f2a93b);
+      color: var(--navy-900);
+      font-weight: 800;
+      font-size: 20px;
+    }
+
+    .brand-text h1 { margin: 0; font-size: 1.05rem; }
+    .brand-text small { opacity: 0.8; }
+
+    .user-box {
+      display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 12px 10px; margin-bottom: 16px;
+    }
+    .avatar {
+      width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #f4d679, #9ad6ff); color: var(--navy-900); display: grid; place-items: center; font-weight: 700;
+    }
+    .user-meta strong { display: block; font-size: 0.9rem; }
+    .user-meta span { font-size: 0.72rem; opacity: 0.75; text-transform: capitalize; }
+
+    .nav { display: flex; flex-direction: column; gap: 8px; }
+    .nav button {
+      width: 100%; border: none; background: transparent; color: #eaf2ff; border-radius: 12px; padding: 12px 10px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.2s ease; text-align: left;
+    }
+    .nav button:hover, .nav button.active { background: rgba(255,255,255,0.12); }
+    .nav-icon { width: 16px; text-align: center; font-size: 1rem; }
+    .nav-label { flex: 1; }
+
+    .main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: rgba(255,255,255,0.75);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 16px 26px;
+    }
+
+    .topbar-left, .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .icon-button {
+      width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); display: grid; place-items: center; cursor: pointer; color: var(--navy-800);
+    }
+    .page-shell { padding: 24px; }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .hero {
+      background: linear-gradient(135deg, var(--navy-900), var(--navy-800));
+      border-radius: 24px;
+      padding: 24px 22px;
+      color: white;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+    }
+    .hero-inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .hero h2 { margin: 0 0 8px; font-size: clamp(1.5rem, 3vw, 2.2rem); }
+    .hero p { margin: 0; opacity: 0.8; }
+    .pill { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.12); padding: 8px 12px; border-radius: 999px; }
+
+    .stats-grid, .kpi-grid, .quick-grid, .report-grid { display: grid; gap: 16px; }
+    .stats-grid { grid-template-columns: repeat(3, minmax(180px, 1fr)); }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; box-shadow: 0 8px 20px rgba(11, 31, 58, 0.04);
+    }
+    .stat-card strong { display: block; font-size: 1.5rem; margin-top: 5px; }
+    .muted { color: var(--muted); }
+    .trend { display: inline-flex; align-items: center; padding: 6px 8px; border-radius: 999px; font-size: 0.74rem; font-weight: 700; }
+    .trend.up { background: rgba(31, 170, 108, 0.1); color: var(--green); }
+    .trend.down { background: rgba(228, 91, 91, 0.1); color: var(--red); }
+
+    .alerts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 14px; margin-top: 18px; }
+    .alert-box {
+      background: var(--card); border-radius: 14px; border: 1px solid var(--line); padding: 16px; display: flex; align-items: flex-start; gap: 10px;
+    }
+    .alert-box.warning { border-left: 5px solid var(--amber); }
+    .alert-box.alert { border-left: 5px solid var(--red); }
+    .alert-box.success { border-left: 5px solid var(--green); }
+
+    .quick-grid { grid-template-columns: repeat(6, minmax(120px,1fr)); margin-top: 18px; }
+    .quick-card {
+      background: linear-gradient(135deg, #ffffff, #edf5ff); border: 1px solid var(--line); border-radius: 16px; padding: 18px; cursor: pointer; text-align: center; min-height: 120px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; box-shadow: 0 8px 20px rgba(11,31,58,0.03);
+    }
+    .quick-icon { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: rgba(18,61,109,0.08); color: var(--navy-800); font-size: 1.1rem; }
+
+    .kpi-grid { grid-template-columns: repeat(4, minmax(160px,1fr)); margin-top: 18px; }
+    .kpi-card { background: var(--card); border-radius: 18px; border: 1px solid var(--line); padding: 16px; }
+    .kpi-card small { display: block; color: var(--muted); margin-bottom: 8px; }
+    .kpi-card strong { font-size: 1.6rem; }
+    .kpi-card .row { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+
+    .panel-grid {
+      display: grid; grid-template-columns: 1.8fr 1fr; gap: 18px; margin-top: 20px;
+    }
+    .panel {
+      background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; box-shadow: 0 10px 22px rgba(11,31,58,0.03);
+    }
+    .panel h3 { margin: 0 0 14px; }
+    .chart-wrap { position: relative; min-height: 220px; }
+
+    .timeline { display: flex; flex-direction: column; gap: 12px; }
+    .timeline-item { display: flex; gap: 12px; align-items: flex-start; }
+    .point { width: 10px; height: 10px; border-radius: 50%; background: var(--navy-500); margin-top: 5px; }
+    .dot-green { background: var(--green); }
+    .dot-amber { background: var(--amber); }
+
+    .pos-layout { display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 18px; }
+    .product-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px;
+    }
+    .product-card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 12px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; transition: 0.2s ease; box-shadow: 0 8px 18px rgba(11,31,58,0.03);
+    }
+    .product-card:hover { border-color: var(--navy-500); transform: translateY(-1px); }
+    .product-image {
+      height: 120px; border-radius: 12px; background: linear-gradient(135deg, #ebf5ff, #eef7ef); display: grid; place-items: center; overflow: hidden;
+    }
+    .product-image img { width: 100%; height: 100%; object-fit: cover; }
+    .product-meta { display: flex; justify-content: space-between; gap: 8px; }
+    .badge { display: inline-flex; padding: 4px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+    .badge.ready { background: rgba(31,170,108,0.12); color: var(--green); }
+    .badge.low { background: rgba(239,183,62,0.12); color: #8b6408; }
+    .badge.critical { background: rgba(228,91,91,0.12); color: var(--red); }
+
+    .cart-items { display: flex; flex-direction: column; gap: 10px; }
+    .cart-item {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--card-alt); border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+    }
+    .qty-box { display: flex; align-items: center; gap: 8px; }
+    .qty-box button {
+      width: 26px; height: 26px; border-radius: 8px; border: none; background: var(--navy-100); color: var(--navy-800); cursor: pointer; font-weight: 700;
+    }
+
+    .customer-list { display: grid; gap: 10px; }
+    .customer-card {
+      border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; background: #fff; cursor: pointer; transition: 0.2s ease; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .customer-card.selected {
+      background: linear-gradient(135deg, rgba(18,61,109,0.08), rgba(46,115,184,0.18));
+      border-color: var(--navy-500);
+      box-shadow: inset 0 0 0 1px rgba(46,115,184,0.25);
+    }
+
+    .payment-row { display: grid; grid-template-columns: repeat(3, minmax(90px,1fr)); gap: 8px; }
+    .pay-btn {
+      border: 1px solid var(--line); border-radius: 12px; background: var(--card-alt); padding: 12px 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; font-weight: 700;
+    }
+    .pay-btn.active { background: var(--navy-900); color: white; }
+
+    .callout { background: var(--card-alt); border-radius: 12px; border: 1px dashed var(--line); padding: 12px; }
+
+    .inventory-tools { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+    .tool-group { display: flex; align-items: center; gap: 8px; }
+    .input, .select, .search-input {
+      border: 1px solid var(--line); background: white; border-radius: 10px; padding: 10px 12px; color: var(--text);
+    }
+    .btn {
+      border: none; border-radius: 10px; padding: 10px 14px; cursor: pointer; font-weight: 700;
+    }
+    .btn.primary { background: var(--navy-800); color: white; }
+    .btn.secondary { background: var(--navy-100); color: var(--navy-800); }
+    .btn.warning { background: rgba(239,183,62,0.12); color: #8b6408; }
+
+    table.dataTable { width: 100% !important; }
+    .dataTables_wrapper .dataTables_filter input { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+    .dt-buttons .dt-button { background: var(--navy-800); color: white; border: none; border-radius: 8px; margin: 0 4px 8px 0; }
+    .thumb { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; background: linear-gradient(135deg, #edf5ff, #eefaf2); }
+
+    .report-grid { grid-template-columns: repeat(3, minmax(180px,1fr)); margin-bottom: 16px; }
+    .report-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+
+    .business-dashboard { display: grid; gap: 18px; }
+    .business-dashboard-header {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+      padding: 22px; border-radius: 20px; color: #fff;
+      background: linear-gradient(135deg, var(--navy-900), var(--navy-800));
+    }
+    .business-dashboard-header h2 { margin: 0 0 8px; color: #fff; }
+    .business-dashboard-header p { margin: 0; color: rgba(255,255,255,0.78); }
+    .business-connection { display: grid; justify-items: end; gap: 8px; text-align: right; }
+    .business-connection-status { display: inline-flex; padding: 7px 11px; border-radius: 999px; font-weight: 700; font-size: 0.82rem; }
+    .business-connection-status.loading { color: #744b00; background: #fff2c8; }
+    .business-connection-status.connected { color: #11633e; background: #dcfce7; }
+    .business-connection-status.error { color: #991b1b; background: #fee2e2; }
+    .business-connection-error { max-width: 380px; color: #fee2e2; font-size: 0.82rem; }
+    .business-metrics { display: grid; grid-template-columns: repeat(3, minmax(170px, 1fr)); gap: 14px; }
+    .business-metric {
+      min-width: 0; padding: 18px; background: var(--card); border: 1px solid var(--line);
+      border-top: 4px solid var(--navy-700); border-radius: 16px; box-shadow: 0 8px 20px rgba(11,31,58,0.04);
+    }
+    .business-metric:nth-child(1) { border-top-color: var(--green); }
+    .business-metric:nth-child(3) { border-top-color: var(--amber); }
+    .business-metric:nth-child(4) { border-top-color: var(--red); }
+    .business-metric:nth-child(5) { border-top-color: var(--purple); }
+    .business-metric:nth-child(6) { border-top-color: #1684b8; }
+    .business-metric-label { color: var(--muted); font-size: 0.82rem; font-weight: 700; text-transform: uppercase; }
+    .business-metric-value { margin-top: 12px; color: var(--navy-900); font-size: clamp(1.35rem, 2.5vw, 2rem); font-weight: 800; overflow-wrap: anywhere; }
+    .business-panels { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+    .business-panel { min-width: 0; padding: 18px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+    .business-panel h3 { margin: 0 0 14px; }
+    .business-chart { position: relative; height: 280px; }
+    .business-list { list-style: none; margin: 0; padding: 0; }
+    .business-list li { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+    .business-list li:last-child { border-bottom: 0; }
+    .business-list-value { color: var(--navy-800); font-weight: 700; white-space: nowrap; }
+    .business-empty { color: var(--muted); padding: 12px 0; }
+
+    .auth-screen {
+      position: fixed; inset: 0; background: linear-gradient(135deg, rgba(11,31,58,0.96), rgba(32,68,110,0.82));
+      display: grid; place-items: center; z-index: 99; 
+    }
+    .auth-card {
+      width: min(92vw, 440px); background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); border-radius: 24px; padding: 26px; box-shadow: 0 22px 50px rgba(0,0,0,0.2);
+    }
+    .auth-card h2 { margin-top: 0; font-size: 1.8rem; color: var(--navy-900); }
+    .auth-form { display: grid; gap: 12px; }
+    .auth-form input, .auth-form button { width: 100%; }
+    .auth-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; font-size: 0.82rem; }
+
+    .modal-bg {
+      position: fixed; inset: 0; background: rgba(10, 18, 30, 0.58); display: none; z-index: 200;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-bg.show { display: flex; }
+    .modal-card {
+      width: min(480px, 90vw); background: white; border-radius: 20px; box-shadow: 0 18px 40px rgba(0,0,0,0.2); overflow: hidden;
+    }
+    .modal-header { background: var(--navy-900); color: white; padding: 16px 18px; font-weight: 700; }
+    .modal-body { padding: 18px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 0 18px 18px; }
+
+    .toast {
+      position: fixed; right: 20px; bottom: 20px; background: rgba(11,31,58,0.95); color: #fff; padding: 12px 16px; border-radius: 12px; box-shadow: var(--shadow); display: none; z-index: 250;
+    }
+    .toast.show { display: block; }
+
+    @media (max-width: 960px) {
+      .sidebar { width: 80px; }
+      .quick-grid { grid-template-columns: repeat(3, minmax(110px,1fr)); }
+      .panel-grid, .pos-layout { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      .page-shell { padding: 16px; }
+      .topbar { padding: 12px 16px; }
+      .stats-grid, .kpi-grid, .report-grid { grid-template-columns: 1fr 1fr; }
+      .business-metrics { grid-template-columns: 1fr 1fr; }
+      .business-panels { grid-template-columns: 1fr; }
+      .business-dashboard-header { flex-direction: column; }
+      .business-connection { justify-items: start; text-align: left; }
+      .hero-inner { flex-direction: column; align-items: flex-start; }
+      .mobile-only { display: inline-flex; }
+      .desktop-only { display: none; }
+      .sidebar {
+        position: fixed; left: 0; top: 0; bottom: 0; width: 220px; transform: translateX(-100%);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .bottom-nav {
+        position: fixed; left: 0; right: 0; bottom: 0; background: rgba(11,31,58,0.96); display: flex; justify-content: space-between; padding: 10px 16px; z-index: 30;
+      }
+      .bottom-nav button { background: transparent; color: white; border: none; flex: 1; padding: 8px 4px; }
+      .main { padding-bottom: 74px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <div id="authHeader">
+        <h2>Welcome back</h2>
+        <p class="muted">Sign in to Itlog ni JunPaul</p>
+      </div>
+      <form id="loginForm" class="auth-form">
+        <input id="loginEmail" class="input" type="email" placeholder="Email address" required />
+        <input id="loginPassword" class="input" type="password" placeholder="Password" required />
+        <button class="btn primary" type="submit">Login</button>
+      </form>
+
+      <form id="forgotForm" class="auth-form hide">
+        <input id="forgotEmail" class="input" type="email" placeholder="Enter your email" required />
+        <button class="btn primary" type="submit">Send OTP</button>
+      </form>
+
+      <form id="resetForm" class="auth-form hide">
+        <input id="resetEmail" class="input" type="email" placeholder="Email" required />
+        <input id="otpInput" class="input" type="text" placeholder="6-digit OTP" maxlength="6" required />
+        <input id="newPassword" class="input" type="password" placeholder="New password" required />
+        <button class="btn primary" type="submit">Reset Password</button>
+      </form>
+
+      <div class="auth-actions">
+        <button id="toForgotBtn" class="btn secondary" type="button">Forgot password?</button>
+        <button id="toLoginBtn" class="btn secondary hide" type="button">Back to login</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="appShell" class="app-shell hide">
+    <aside id="sidebar" class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">E</div>
+        <div class="brand-text">
+          <h1>Itlog ni JunPaul</h1>
+          <small>Egg business</small>
+        </div>
+      </div>
+
+      <div class="user-box">
+        <div id="userAvatar" class="avatar">JP</div>
+        <div class="user-meta">
+          <strong id="sidebarName">Administrator</strong>
+          <span id="sidebarRole">admin</span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-view="dashboard"><span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span></button>
+        <button class="nav-item" data-view="pos"><span class="nav-icon">🧾</span><span class="nav-label">POS</span></button>
+        <button class="nav-item" data-view="inventory"><span class="nav-icon">📦</span><span class="nav-label">Inventory</span></button>
+        <button class="nav-item" data-view="reports"><span class="nav-icon">📊</span><span class="nav-label">Reports</span></button>
+        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙️</span><span class="nav-label">Settings</span></button>
+        <button id="logoutBtn" class="nav-item"><span class="nav-icon">🚪</span><span class="nav-label">Logout</span></button>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="sidebarToggle" class="icon-button" title="Toggle sidebar">☰</button>
+          <div>
+            <div class="muted">Egg selling system</div>
+            <strong>April 2026</strong>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <button id="refreshDataButton" class="icon-button" title="Refresh data">🔄</button>
+          <button id="syncButton" class="btn primary">Sync Dashboard</button>
+        </div>
+      </header>
+
+      <div class="page-shell">
+        <section id="dashboardView" class="page active">
+          <div class="business-dashboard">
+            <div class="business-dashboard-header">
+              <div>
+                <h2 id="greetingText">Business Overview</h2>
+                <p>Live figures read from the Google Sheets Dashboard tab.</p>
+              </div>
+              <div class="business-connection">
+                <span id="businessConnectionStatus" class="business-connection-status loading">Syncing with Google Sheets...</span>
+                <span id="businessConnectionError" class="business-connection-error" role="alert"></span>
+                <span id="businessLastUpdated" class="small-text">Waiting for data...</span>
+              </div>
+            </div>
+
+            <div class="business-metrics">
+              <article class="business-metric"><div class="business-metric-label">Sales Today</div><div id="salesTodayValue" class="business-metric-value">N/A</div></article>
+              <article class="business-metric"><div class="business-metric-label">Sales Yesterday</div><div id="salesYesterdayValue" class="business-metric-value">N/A</div></article>
+              <article class="business-metric"><div class="business-metric-label">Stock Units</div><div id="stockUnitsValue" class="business-metric-value">N/A</div></article>
+              <article class="business-metric"><div class="business-metric-label">Low Stock Items</div><div id="lowStockItemsValue" class="business-metric-value">N/A</div></article>
+              <article class="business-metric"><div class="business-metric-label">Total Expenses</div><div id="totalExpensesValue" class="business-metric-value">N/A</div></article>
+              <article class="business-metric"><div class="business-metric-label">Estimated Profit</div><div id="estimatedProfitValue" class="business-metric-value">N/A</div></article>
+            </div>
+
+            <div class="business-panels">
+              <section class="business-panel">
+                <h3>Sales by Date</h3>
+                <div class="business-chart"><canvas id="salesChart"></canvas></div>
+              </section>
+              <section class="business-panel">
+                <h3>Stock Status</h3>
+                <div class="business-chart"><canvas id="stockChart"></canvas></div>
+              </section>
+            </div>
+
+            <div class="business-panels">
+              <section class="business-panel">
+                <h3>Top Customers</h3>
+                <ul id="businessTopCustomers" class="business-list"></ul>
+              </section>
+              <section class="business-panel">
+                <h3>Expense Breakdown</h3>
+                <ul id="businessExpenseBreakdown" class="business-list"></ul>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <section id="posView" class="page">
+          <div class="panel">
+            <div class="inventory-tools">
+              <div class="tool-group">
+                <input id="productSearch" class="search-input" type="text" placeholder="Search eggs or car..." />
+              </div>
+              <div class="tool-group">
+                <button id="newSaleBtn" class="btn primary">New Sale</button>
+              </div>
+            </div>
+
+            <div class="pos-layout">
+              <div>
+                <div id="productGrid" class="product-grid"></div>
+              </div>
+
+              <div>
+                <div class="callout">
+                  <h3>Cart</h3>
+                  <div id="cartList" class="cart-items"></div>
+                  <div style="margin-top:14px; border-top:1px solid var(--line); padding-top:10px;">
+                    <div class="muted">Subtotal</div>
+                    <strong id="subtotalLabel">PHP 0.00</strong>
+                  </div>
+                  <div style="margin-top:10px;">
+                    <label>Discount</label>
+                    <input id="discountInput" class="input" type="number" value="0" min="0" />
+                  </div>
+                  <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--line);">
+                    <h3>Delivery</h3>
+                    <label style="display:block; margin:8px 0 5px;">Delivery Vehicle</label>
+                    <select id="deliveryVehicle" class="input" style="width:100%;">
+                      <option value="none">No delivery / Customer pickup</option>
+                      <option value="motorcycle">Motorcycle — base PHP 50</option>
+                      <option value="car">Car — base PHP 90</option>
+                      <option value="truck">Truck — base PHP 150</option>
+                    </select>
+                    <label style="display:block; margin:10px 0 5px;">Distance (km)</label>
+                    <input id="deliveryDistance" class="input" type="number" value="0" min="0" step="0.1" style="width:100%;" />
+                    <small class="muted">Delivery fee = vehicle base rate + PHP 30 per kilometer.</small>
+                    <div style="display:flex; justify-content:space-between; margin-top:10px;"><span>Delivery Fee</span><strong id="deliveryFeeLabel">PHP 0.00</strong></div>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; margin-top:12px; padding-top:10px; border-top:1px solid var(--line);"><strong>Total Due</strong><strong id="totalDueLabel">PHP 0.00</strong></div>
+                  <div style="margin-top:10px;">
+                    <label>Amount Paid</label>
+                    <input id="amountPaidInput" class="input" type="number" value="0" min="0" />
+                  </div>
+                </div>
+
+                <div style="margin-top:14px;" class="callout">
+                  <h3>Customer</h3>
+                  <div id="customerList" class="customer-list"></div>
+                </div>
+
+                <div style="margin-top:14px;" class="callout">
+                  <h3>Payment</h3>
+                  <div class="payment-row">
+                    <button class="pay-btn" data-pay="full">💵 Full</button>
+                    <button class="pay-btn" data-pay="half">🟡 Half</button>
+                    <button class="pay-btn" data-pay="none">⚪ None</button>
+                  </div>
+                  <div style="margin-top:12px; display:grid; grid-template-columns: repeat(2,1fr); gap:8px;">
+                    <button class="pay-btn" data-method="cash">💵 Cash</button>
+                    <button class="pay-btn" data-method="gcash">📱 GCash</button>
+                    <button class="pay-btn" data-method="bank">🏦 Bank</button>
+                    <button class="pay-btn" data-method="card">💳 Card</button>
+                  </div>
+                </div>
+
+                <div style="margin-top:14px; display:flex; gap:8px; flex-wrap: wrap;">
+                  <button id="saveSaleBtn" class="btn primary">Save Sale</button>
+                  <button id="printInvoiceBtn" class="btn secondary">Print Invoice</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="inventoryView" class="page">
+          <div class="panel">
+            <div class="inventory-tools">
+              <div class="tool-group">
+                <input id="inventorySearch" class="search-input" type="text" placeholder="Filter inventory..." />
+                <button id="bulkImportBtn" class="btn secondary">Bulk CSV Import</button>
+                <input id="csvFileInput" type="file" accept=".csv" class="hide" />
+              </div>
+              <div class="tool-group">
+                <button id="uploadImageBtn" class="btn secondary">Upload image</button>
+                <input id="imageUploadInput" type="file" accept="image/*" class="hide" />
+              </div>
+            </div>
+            <div id="inventoryTableWrap">
+              <table id="inventoryTable" class="display nowrap" style="width:100%"></table>
+            </div>
+          </div>
+        </section>
+
+        <section id="reportsView" class="page">
+          <div class="report-grid">
+            <div class="report-card">
+              <small>Profit / Loss</small>
+              <strong id="reportProfit">PHP 0.00</strong>
+            </div>
+            <div class="report-card">
+              <small>Sales Summary</small>
+              <strong id="reportSales">PHP 0.00</strong>
+            </div>
+            <div class="report-card">
+              <small>Stock Aging</small>
+              <strong id="reportAging">0 items</strong>
+            </div>
+          </div>
+
+          <div class="panel-grid">
+            <div class="panel">
+              <h3>Customer Analysis</h3>
+              <canvas id="reportCustomerChart"></canvas>
+            </div>
+            <div class="panel">
+              <h3>Car / Shipment P&L</h3>
+              <canvas id="shipmentChart"></canvas>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top:18px;">
+            <h3>Sales Overview</h3>
+            <table id="reportsTable" class="display nowrap" style="width:100%"></table>
+          </div>
+        </section>
+
+        <section id="settingsView" class="page">
+          <div class="panel">
+            <h3>Business Settings</h3>
+            <div id="settingsForm" class="auth-form" style="max-width: 600px;"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav hide desktop-only" id="mobileNav">
+    <button data-view="dashboard">🏠</button>
+    <button data-view="pos">🧾</button>
+    <button data-view="inventory">📦</button>
+    <button data-view="reports">📊</button>
+    <button data-view="settings">⚙️</button>
+  </nav>
+
+  <div id="modalRoot" class="modal-bg">
+    <div class="modal-card">
+      <div id="modalTitle" class="modal-header">Notice</div>
+      <div id="modalBody" class="modal-body"></div>
+      <div class="modal-actions">
+        <button id="modalCancelBtn" class="btn secondary">Cancel</button>
+        <button id="modalConfirmBtn" class="btn primary">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const state = {
+      user: null,
+      activeView: 'dashboard',
+      selectedCustomer: null,
+      selectedPaymentMethod: 'cash',
+      currentCart: [],
+      paymentAction: 'full',
+      inventoryCache: null,
+      dashboardLoading: false,
+      settingsCache: null,
+      tableInstances: {}
+    };
+
+    function init() {
+      bindGlobalEvents();
+      bindAuthEvents();
+      const sidebarFlag = localStorage.getItem('itlog_sidebar_open');
+      const sidebarOpen = sidebarFlag === null ? true : sidebarFlag === 'true';
+      setSidebarState(sidebarOpen);
+      showLoginMode();
+      window.setInterval(function () {
+        if (state.user && state.activeView === 'dashboard' && document.visibilityState === 'visible') {
+          loadDashboard(true);
+        }
+      }, 10000);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible' && state.user && state.activeView === 'dashboard') {
+          loadDashboard(true);
+        }
+      });
+
+      google.script.run.withSuccessHandler(function (result) {
+        if (result && result.ok) {
+          console.log('Demo data ready');
+          localStorage.removeItem('itlog_cache_dashboard');
+          localStorage.removeItem('itlog_cache_reports');
+          localStorage.removeItem('itlog_cache_inventory');
+          localStorage.removeItem('itlog_cache_pos');
+          refreshAllData(true);
+        }
+      }).ensureDemoDataReady();
+
+      google.script.run.withSuccessHandler(function (user) {
+        if (user) {
+          state.user = user;
+          showApp();
+          applyRoleMenu();
+          renderUserIdentity();
+          refreshAllData(true);
+        } else {
+          showLoginMode();
+        }
+      }).getSessionUser();
+    }
+
+    function refreshAllData(forceRefresh) {
+      loadDashboard(forceRefresh);
+      loadPOS(forceRefresh);
+      loadInventory(forceRefresh);
+      loadReports(forceRefresh);
+      loadSettings(forceRefresh);
+    }
+
+    function renderUserIdentity() {
+      const user = state.user || {};
+      const initials = (user.name || 'User').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
+      document.getElementById('userAvatar').textContent = initials;
+      document.getElementById('sidebarName').textContent = user.name || 'User';
+      document.getElementById('sidebarRole').textContent = user.role || 'admin';
+      document.getElementById('greetingText').textContent = 'Good ' + getGreeting() + ', ' + (user.name || 'User').split(' ')[0];
+    }
+
+    function getGreeting() {
+      const hour = new Date().getHours();
+      if (hour < 12) return 'morning';
+      if (hour < 18) return 'afternoon';
+      return 'evening';
+    }
+
+    function bindGlobalEvents() {
+      document.querySelectorAll('.nav-item').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (btn.id === 'logoutBtn') {
+            logout();
+            return;
+          }
+          if (btn.dataset.view) {
+            showView(btn.dataset.view);
+          }
+        });
+      });
+
+      document.getElementById('sidebarToggle').addEventListener('click', function () {
+        const current = document.getElementById('sidebar').classList.contains('collapsed');
+        setSidebarState(!current);
+      });
+
+      document.getElementById('syncButton').addEventListener('click', function () {
+        loadDashboard(true);
+      });
+
+      document.getElementById('refreshDataButton').addEventListener('click', function () {
+        refreshAllData(true);
+      });
+
+      document.getElementById('productSearch').addEventListener('input', function () {
+        const term = this.value.toLowerCase();
+        const cards = document.querySelectorAll('.product-card');
+        cards.forEach(function (card) {
+          const text = card.textContent.toLowerCase();
+          card.style.display = text.includes(term) ? 'flex' : 'none';
+        });
+      });
+
+      document.getElementById('inventorySearch').addEventListener('input', function () {
+        const table = state.tableInstances.inventoryTable;
+        if (table) table.search(this.value).draw();
+      });
+
+      document.querySelectorAll('.pay-btn[data-pay]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          state.paymentAction = btn.dataset.pay;
+          applyPaymentButtons();
+          setAmountPaidByAction();
+        });
+      });
+
+      document.querySelectorAll('.pay-btn[data-method]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          state.selectedPaymentMethod = btn.dataset.method;
+          document.querySelectorAll('.pay-btn[data-method]').forEach(b => b.classList.toggle('active', b === btn));
+        });
+      });
+
+      document.getElementById('discountInput').addEventListener('input', function () {
+        renderCartSummary();
+      });
+      document.getElementById('deliveryVehicle').addEventListener('change', renderCartSummary);
+      document.getElementById('deliveryDistance').addEventListener('input', renderCartSummary);
+
+      document.getElementById('amountPaidInput').addEventListener('input', function () {
+        const val = Number(this.value || 0);
+        if (val < 0) this.value = 0;
+      });
+
+      document.getElementById('newSaleBtn').addEventListener('click', function () {
+        state.currentCart = [];
+        document.getElementById('deliveryVehicle').value = 'none';
+        document.getElementById('deliveryDistance').value = '0';
+        document.getElementById('discountInput').value = '0';
+        renderCart();
+        renderCartSummary();
+        showToast('Cart cleared.');
+      });
+
+      document.getElementById('saveSaleBtn').addEventListener('click', function () {
+        saveCurrentSale(false);
+      });
+
+      document.getElementById('printInvoiceBtn').addEventListener('click', function () {
+        if (!state.currentCart.length) {
+          showToast('Add items to the cart before printing.');
+          return;
+        }
+        confirmPrintInvoice();
+      });
+
+      document.getElementById('bulkImportBtn').addEventListener('click', function () {
+        document.getElementById('csvFileInput').click();
+      });
+
+      document.getElementById('csvFileInput').addEventListener('change', function (event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const text = e.target.result;
+          const rows = parseCsv(text);
+          google.script.run.withSuccessHandler(function (result) {
+            showToast('Imported ' + result.inserted + ' stocks.');
+            localStorage.removeItem('itlog_cache_dashboard');
+            loadInventory(true);
+            loadDashboard(true);
+          }).withFailureHandler(function (err) {
+            showToast(err.message || 'Import failed');
+          }).bulkImportEggs(rows);
+        };
+        reader.readAsText(file);
+      });
+
+      document.getElementById('uploadImageBtn').addEventListener('click', function () {
+        document.getElementById('imageUploadInput').click();
+      });
+
+      document.getElementById('imageUploadInput').addEventListener('change', function (event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        if (!/^image\//i.test(file.type)) {
+          showToast('Please select an image file.');
+          event.target.value = '';
+          return;
+        }
+
+        const serials = (state.inventoryCache || []).map(function (row) { return row.serial; }).filter(Boolean);
+        if (!serials.length) {
+          showToast('Inventory is not loaded yet. Refresh the inventory and try again.');
+          event.target.value = '';
+          return;
+        }
+
+        const serial = window.prompt('Enter the Egg_Stocks serial for this image:\n' + serials.join(', '));
+        if (!serial) {
+          event.target.value = '';
+          return;
+        }
+        const matched = serials.find(function (value) {
+          return String(value).trim().toLowerCase() === String(serial).trim().toLowerCase();
+        });
+        if (!matched) {
+          showToast('Serial not found. Please use an exact serial from Egg_Stocks.');
+          event.target.value = '';
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function () {
+          showLoading('Uploading image...');
+          google.script.run
+            .withSuccessHandler(function (result) {
+              hideLoading();
+              showToast('Image saved in Egg_Stocks column L for ' + result.serial + '.');
+              event.target.value = '';
+              loadInventory(true);
+              loadPOS(true);
+            })
+            .withFailureHandler(function (err) {
+              hideLoading();
+              showToast((err && err.message) || 'Image upload failed.');
+              event.target.value = '';
+            })
+            .uploadInventoryImage(matched, reader.result, file.name);
+        };
+        reader.onerror = function () {
+          showToast('Could not read the selected image.');
+          event.target.value = '';
+        };
+        reader.readAsDataURL(file);
+      });
+
+      document.getElementById('mobileNav').addEventListener('click', function (event) {
+        const btn = event.target.closest('button[data-view]');
+        if (!btn) return;
+        showView(btn.dataset.view);
+      });
+    }
+
+    function bindAuthEvents() {
+      document.getElementById('loginForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        showLoading('Signing in...');
+        google.script.run.withSuccessHandler(function (user) {
+          hideLoading();
+          state.user = user;
+          showApp();
+          applyRoleMenu();
+          renderUserIdentity();
+          loadDashboard();
+          loadPOS();
+          loadInventory();
+          loadReports();
+          loadSettings();
+        }).withFailureHandler(function (err) {
+          hideLoading();
+          showModal('Login failed', err.message || 'Please check your credentials.', 'OK');
+        }).login(email, password);
+      });
+
+      document.getElementById('forgotForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const email = document.getElementById('forgotEmail').value.trim();
+        showLoading('Sending OTP...');
+        google.script.run.withSuccessHandler(function (result) {
+          hideLoading();
+          showToast(result.message || 'OTP sent.');
+          document.getElementById('resetEmail').value = email;
+          showResetMode();
+        }).withFailureHandler(function (err) {
+          hideLoading();
+          showToast(err.message || 'Unable to send OTP.');
+        }).forgotPassword(email);
+      });
+
+      document.getElementById('resetForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const email = document.getElementById('resetEmail').value.trim();
+        const otp = document.getElementById('otpInput').value.trim();
+        const newPassword = document.getElementById('newPassword').value;
+        showLoading('Resetting password...');
+        google.script.run.withSuccessHandler(function (result) {
+          hideLoading();
+          showToast(result.message || 'Password reset');
+          showLoginMode();
+          document.getElementById('loginEmail').value = email;
+        }).withFailureHandler(function (err) {
+          hideLoading();
+          showToast(err.message || 'Reset failed');
+        }).resetPassword(email, otp, newPassword);
+      });
+
+      document.getElementById('toForgotBtn').addEventListener('click', function () {
+        showForgotMode();
+      });
+      document.getElementById('toLoginBtn').addEventListener('click', function () {
+        showLoginMode();
+      });
+    }
+
+    function showLoginMode() {
+      document.getElementById('loginForm').classList.remove('hide');
+      document.getElementById('forgotForm').classList.add('hide');
+      document.getElementById('resetForm').classList.add('hide');
+      document.getElementById('toForgotBtn').classList.remove('hide');
+      document.getElementById('toLoginBtn').classList.add('hide');
+      document.getElementById('authHeader').innerHTML = '<h2>Welcome back</h2><p class="muted">Sign in to Itlog ni JunPaul</p>';
+    }
+
+    function showForgotMode() {
+      document.getElementById('loginForm').classList.add('hide');
+      document.getElementById('forgotForm').classList.remove('hide');
+      document.getElementById('resetForm').classList.add('hide');
+      document.getElementById('toForgotBtn').classList.add('hide');
+      document.getElementById('toLoginBtn').classList.remove('hide');
+      document.getElementById('authHeader').innerHTML = '<h2>Password reset</h2><p class="muted">Enter your email to receive a 6-digit OTP.</p>';
+    }
+
+    function showResetMode() {
+      document.getElementById('loginForm').classList.add('hide');
+      document.getElementById('forgotForm').classList.add('hide');
+      document.getElementById('resetForm').classList.remove('hide');
+      document.getElementById('toForgotBtn').classList.add('hide');
+      document.getElementById('toLoginBtn').classList.remove('hide');
+      document.getElementById('authHeader').innerHTML = '<h2>Set new password</h2><p class="muted">Use your OTP to create a new password.</p>';
+    }
+
+    function showApp() {
+      document.getElementById('authScreen').classList.add('hide');
+      document.getElementById('appShell').classList.remove('hide');
+    }
+
+    function applyRoleMenu() {
+      const role = (state.user && state.user.role) || 'admin';
+      const allowed = {
+        admin: ['dashboard', 'pos', 'inventory', 'reports', 'settings'],
+        manager: ['dashboard', 'pos', 'inventory', 'reports'],
+        cashier: ['dashboard', 'pos'],
+        warehouse_staff: ['dashboard', 'inventory']
+      };
+      document.querySelectorAll('.nav-item[data-view]').forEach(function (btn) {
+        const shouldShow = (allowed[role] || []).includes(btn.dataset.view);
+        btn.classList.toggle('hide', !shouldShow);
+      });
+      document.querySelectorAll('#mobileNav button[data-view]').forEach(function (btn) {
+        const shouldShow = (allowed[role] || []).includes(btn.dataset.view);
+        btn.classList.toggle('hide', !shouldShow);
+      });
+      if (!allowed[role] || !allowed[role].includes(state.activeView)) {
+        state.activeView = allowed[role] ? allowed[role][0] : 'dashboard';
+      }
+      showView(state.activeView);
+    }
+
+    function forcePageTop() {
+      // Reset every possible document scrolling surface. Some browsers restore
+      // scroll position after a hidden section (especially Reports/DataTables) renders.
+      try { window.scrollTo(0, 0); } catch (e) {}
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      var shell = document.getElementById('appShell');
+      var pageShell = document.querySelector('.page-shell');
+      if (shell) shell.scrollTop = 0;
+      if (pageShell) pageShell.scrollTop = 0;
+    }
+
+    function showView(viewName) {
+      state.activeView = viewName;
+      forcePageTop();
+      document.querySelectorAll('.page').forEach(function (p) {
+        p.classList.toggle('active', p.id === viewName + 'View');
+      });
+      document.querySelectorAll('.nav-item[data-view]').forEach(function (btn) {
+        btn.classList.toggle('active', btn.dataset.view === viewName);
+      });
+      if (window.innerWidth <= 720) {
+        document.getElementById('sidebar').classList.remove('open');
+      }
+      // Repeat after the browser has recalculated layout for the newly visible page.
+      requestAnimationFrame(function () {
+        forcePageTop();
+        requestAnimationFrame(forcePageTop);
+      });
+      if (viewName === 'dashboard' && state.user) {
+        loadDashboard(true);
+      }
+    }
+
+    function setSidebarState(open) {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('collapsed', !open);
+      sidebar.classList.toggle('open', open && window.innerWidth <= 720);
+      localStorage.setItem('itlog_sidebar_open', String(open));
+    }
+
+    function loadDashboard(forceRefresh) {
+      if (state.dashboardLoading) return;
+      state.dashboardLoading = true;
+      const button = document.getElementById('syncButton');
+      if (button) button.disabled = true;
+      setBusinessDashboardStatus('loading', '');
+
+      google.script.run
+        .withSuccessHandler(function (data) {
+          state.dashboardLoading = false;
+          if (button) button.disabled = false;
+          renderBusinessDashboard(data);
+        })
+        .withFailureHandler(function (error) {
+          state.dashboardLoading = false;
+          if (button) button.disabled = false;
+          renderBusinessDashboard({
+            success: false,
+            error: error && error.message ? error.message : 'Unable to load the Dashboard sheet.'
+          });
+        })
+        .getBusinessDashboard();
+    }
+
+    function setBusinessDashboardStatus(status, errorMessage) {
+      const statusEl = document.getElementById('businessConnectionStatus');
+      const errorEl = document.getElementById('businessConnectionError');
+      if (statusEl) {
+        statusEl.className = 'business-connection-status ' + status;
+        statusEl.textContent = status === 'loading'
+          ? 'Syncing with Google Sheets...'
+          : status === 'connected'
+            ? 'Connected'
+            : 'Connection Error';
+      }
+      if (errorEl) errorEl.textContent = errorMessage || '';
+    }
+
+    function dashboardCurrency(value) {
+      if (value === null || value === undefined || value === '' || !Number.isFinite(Number(value))) return 'N/A';
+      return formatMoney(Number(value));
+    }
+
+    function dashboardCount(value) {
+      if (value === null || value === undefined || value === '' || !Number.isFinite(Number(value))) return 'N/A';
+      return Number(value).toLocaleString('en-US');
+    }
+
+    function renderBusinessList(elementId, entries, valueFormatter) {
+      const list = document.getElementById(elementId);
+      if (!list) return;
+      if (!Array.isArray(entries) || !entries.length) {
+        list.innerHTML = '<li class="business-empty">No data available in the Dashboard sheet.</li>';
+        return;
+      }
+
+      list.textContent = '';
+      entries.forEach(function (entry) {
+        const item = document.createElement('li');
+        const label = document.createElement('span');
+        const value = document.createElement('span');
+        label.textContent = String(entry.label || entry.name || 'Item');
+        value.className = 'business-list-value';
+        value.textContent = valueFormatter(entry.value);
+        item.appendChild(label);
+        item.appendChild(value);
+        list.appendChild(item);
+      });
+    }
+
+    function renderBusinessDashboard(data) {
+      if (!data || data.success !== true) {
+        const message = data && data.error ? data.error : 'Dashboard returned no data.';
+        setBusinessDashboardStatus('error', message);
+        ['salesTodayValue', 'salesYesterdayValue', 'totalExpensesValue', 'estimatedProfitValue']
+          .forEach(function (id) { document.getElementById(id).textContent = 'N/A'; });
+        ['stockUnitsValue', 'lowStockItemsValue']
+          .forEach(function (id) { document.getElementById(id).textContent = 'N/A'; });
+        const updated = document.getElementById('businessLastUpdated');
+        if (updated) updated.textContent = 'Unable to sync';
+        renderBusinessList('businessTopCustomers', [], dashboardCurrency);
+        renderBusinessList('businessExpenseBreakdown', [], dashboardCurrency);
+        return;
+      }
+
+      setBusinessDashboardStatus('connected', '');
+      document.getElementById('salesTodayValue').textContent = dashboardCurrency(data.salesToday);
+      document.getElementById('salesYesterdayValue').textContent = dashboardCurrency(data.salesYesterday);
+      document.getElementById('stockUnitsValue').textContent = dashboardCount(data.stockUnits);
+      document.getElementById('lowStockItemsValue').textContent = dashboardCount(data.lowStockItems);
+      document.getElementById('totalExpensesValue').textContent = dashboardCurrency(data.totalExpenses);
+      document.getElementById('estimatedProfitValue').textContent = dashboardCurrency(data.estimatedProfit);
+
+      const updatedAt = data.lastUpdated ? new Date(data.lastUpdated) : null;
+      const updated = document.getElementById('businessLastUpdated');
+      if (updated) {
+        updated.textContent = updatedAt && !isNaN(updatedAt.getTime())
+          ? 'Retrieved ' + updatedAt.toLocaleString()
+          : 'Retrieved just now';
+      }
+
+      renderBusinessList('businessTopCustomers', data.topCustomers, dashboardCurrency);
+      renderBusinessList('businessExpenseBreakdown', data.expenseBreakdown, dashboardCurrency);
+
+      const sales = Array.isArray(data.salesByDate) ? data.salesByDate : [];
+      renderChart('salesChart', {
+        type: 'line',
+        data: {
+          labels: sales.map(function (entry) { return entry.label; }),
+          datasets: [{
+            label: 'Sales',
+            data: sales.map(function (entry) { return Number(entry.value); }),
+            borderColor: '#1b5394',
+            backgroundColor: 'rgba(27,83,148,0.14)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.35
+          }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+
+      const stock = Array.isArray(data.stockStatus) ? data.stockStatus : [];
+      renderChart('stockChart', {
+        type: 'doughnut',
+        data: {
+          labels: stock.map(function (entry) { return entry.label; }),
+          datasets: [{
+            data: stock.map(function (entry) { return Number(entry.value); }),
+            backgroundColor: ['#1faa6c', '#efb73e', '#e45b5b', '#2e73b8', '#7a56d7']
+          }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+    }
+
+    function loadPOS(forceRefresh) {
+      const cacheKey = 'itlog_cache_pos';
+      const fetcher = function () {
+        return new Promise(function (resolve, reject) {
+          google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPOSData();
+        });
+      };
+      useCache(cacheKey, fetcher, 180000, forceRefresh).then(function (data) {
+        renderPOS(data);
+      }).catch(function (err) {
+        showToast(err.message || 'POS data failed to load.');
+      });
+    }
+
+    function loadInventory(forceRefresh) {
+      const cacheKey = 'itlog_cache_inventory';
+      const fetcher = function () {
+        return new Promise(function (resolve, reject) {
+          google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getInventoryData();
+        });
+      };
+      useCache(cacheKey, fetcher, 180000, forceRefresh).then(function (data) {
+        state.inventoryCache = data;
+        renderInventoryTable(data);
+      }).catch(function (err) {
+        showToast(err.message || 'Inventory failed to load.');
+      });
+    }
+
+    function loadReports(forceRefresh) {
+      const cacheKey = 'itlog_cache_reports';
+      const fetcher = function () {
+        return new Promise(function (resolve, reject) {
+          google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getReportsData();
+        });
+      };
+      useCache(cacheKey, fetcher, 300000, forceRefresh).then(function (data) {
+        renderReports(data);
+      }).catch(function (err) {
+        showToast(err.message || 'Reports failed to load.');
+      });
+    }
+
+    function loadSettings(forceRefresh) {
+      const cacheKey = 'itlog_cache_settings';
+      const fetcher = function () {
+        return new Promise(function (resolve, reject) {
+          google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getAppSettings();
+        });
+      };
+      useCache(cacheKey, fetcher, 300000, forceRefresh).then(function (data) {
+        state.settingsCache = data;
+        renderSettingsForm(data);
+      }).catch(function (err) {
+        showToast(err.message || 'Settings failed to load.');
+      });
+    }
+
+    function useCache(cacheKey, fetcher, ttl, force) {
+      const raw = localStorage.getItem(cacheKey);
+      if (raw && !force) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.timestamp && Date.now() - parsed.timestamp < ttl) {
+            return Promise.resolve(parsed.data);
+          }
+        } catch (error) {
+          console.warn('Cache parse failed', error);
+        }
+      }
+      return fetcher().then(function (data) {
+        localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: data }));
+        return data;
+      });
+    }
+
+    function renderPOS(data) {
+      const products = data.products || [];
+      const customers = data.customers || [];
+      const settings = data.settings || {};
+      const cardHtml = products.map(function (product) {
+        const badgeClass = (Number(product.qty) <= 20 ? 'critical' : Number(product.qty) <= 50 ? 'low' : 'ready');
+        const imageHtml = product.image ? `<img src="${product.image}" alt="${product.name}" />` : '<div style="color:#123d6d; font-size:2rem;">🥚</div>';
+        return `
+          <div class="product-card" data-serial="${product.serial}">
+            <div class="product-image">${imageHtml}</div>
+            <div>
+              <div class="product-meta">
+                <strong>${product.name}</strong>
+                <span class="badge ${badgeClass}">${product.status}</span>
+              </div>
+              <div class="muted" style="margin-top:4px;">${product.sub_cat}</div>
+            </div>
+            <div class="product-meta">
+              <div>
+                <div class="muted">Stock</div>
+                <strong>${product.qty}</strong>
+              </div>
+              <div>
+                <div class="muted">Price</div>
+                <strong>${formatMoney(product.sell_rate)}</strong>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      document.getElementById('productGrid').innerHTML = cardHtml;
+
+      document.querySelectorAll('.product-card').forEach(function (card) {
+        card.addEventListener('click', function () {
+          const serial = card.dataset.serial;
+          const product = products.find(item => item.serial === serial);
+          if (!product) return;
+          showQuantityModal(product);
+        });
+      });
+
+      const customerHtml = customers.map(function (customer) {
+        const selected = (state.selectedCustomer && state.selectedCustomer.id === customer.id) ? 'selected' : '';
+        return `
+          <div class="customer-card ${selected}" data-customer-id="${customer.id}">
+            <div>
+              <strong>${customer.name}</strong><br />
+              <small class="muted">${customer.phone}</small>
+            </div>
+            <span class="badge ready">${customer.credit_limit || '0'}</span>
+          </div>
+        `;
+      }).join('');
+      document.getElementById('customerList').innerHTML = customerHtml;
+
+      document.querySelectorAll('.customer-card').forEach(function (card) {
+        card.addEventListener('click', function () {
+          const id = card.dataset.customerId;
+          const customer = customers.find(item => item.id === id);
+          state.selectedCustomer = customer;
+          document.querySelectorAll('.customer-card').forEach(c => c.classList.toggle('selected', c.dataset.customerId === id));
+        });
+      });
+
+      document.getElementById('discountInput').value = settings.default_discount || 0;
+      renderCart();
+      renderCartSummary();
+      applyPaymentButtons();
+    }
+
+    function showQuantityModal(product) {
+      const modal = document.getElementById('modalRoot');
+      const title = document.getElementById('modalTitle');
+      const body = document.getElementById('modalBody');
+      const cancel = document.getElementById('modalCancelBtn');
+      const confirm = document.getElementById('modalConfirmBtn');
+
+      title.textContent = 'Add quantity';
+      body.innerHTML = `
+        <div style="display:grid; gap:12px;">
+          <div><strong>${product.name}</strong></div>
+          <div class="muted">Available: ${product.qty} trays</div>
+          <label>Quantity</label>
+          <input id="qtyInput" class="input" type="number" value="1" min="1" max="${product.qty}" />
+        </div>
+      `;
+      cancel.onclick = function () { modal.classList.remove('show'); };
+      confirm.onclick = function () {
+        const qty = Number(document.getElementById('qtyInput').value || 0);
+        if (qty > 0) {
+          addToCart({
+            serial: product.serial,
+            name: product.name,
+            qty: qty,
+            sell_rate: product.sell_rate,
+            sub_cat: product.sub_cat,
+            status: product.status
+          });
+        }
+        modal.classList.remove('show');
+      };
+      modal.classList.add('show');
+    }
+
+    function addToCart(item) {
+      const existing = state.currentCart.find(p => p.serial === item.serial);
+      if (existing) {
+        existing.qty += item.qty;
+      } else {
+        state.currentCart.push(item);
+      }
+      renderCart();
+      renderCartSummary();
+      if (!state.selectedCustomer) {
+        state.selectedCustomer = { id: 'CUS-001', name: 'Market Basket' };
+      }
+    }
+
+    function renderCart() {
+      const cartList = document.getElementById('cartList');
+      if (!state.currentCart.length) {
+        cartList.innerHTML = '<div class="muted">Cart is empty</div>';
+        return;
+      }
+      cartList.innerHTML = state.currentCart.map(item => `
+        <div class="cart-item">
+          <div>
+            <strong>${item.name}</strong><br />
+            <small class="muted">${item.sub_cat}</small>
+          </div>
+          <div class="qty-box">
+            <button data-action="minus" data-serial="${item.serial}">-</button>
+            <strong>${item.qty}</strong>
+            <button data-action="plus" data-serial="${item.serial}">+</button>
+          </div>
+        </div>
+      `).join('');
+
+      cartList.querySelectorAll('button[data-action]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const serial = btn.dataset.serial;
+          const line = state.currentCart.find(item => item.serial === serial);
+          if (!line) return;
+          if (btn.dataset.action === 'plus') line.qty += 1;
+          if (btn.dataset.action === 'minus') line.qty -= 1;
+          if (line.qty <= 0) {
+            state.currentCart = state.currentCart.filter(item => item.serial !== serial);
+          }
+          renderCart();
+          renderCartSummary();
+        });
+      });
+    }
+
+    function calculateDeliveryFee() {
+      const vehicle = document.getElementById('deliveryVehicle');
+      const distanceInput = document.getElementById('deliveryDistance');
+      if (!vehicle || vehicle.value === 'none') return 0;
+      const baseRates = { motorcycle: 50, car: 90, truck: 150 };
+      const distance = Math.max(0, Number(distanceInput ? distanceInput.value : 0) || 0);
+      return (baseRates[vehicle.value] || 0) + (distance * 30);
+    }
+
+    function renderCartSummary() {
+      const subtotal = state.currentCart.reduce((sum, item) => sum + (Number(item.qty) * Number(item.sell_rate || 0)), 0);
+      const discount = Number(document.getElementById('discountInput').value || 0);
+      const deliveryFee = calculateDeliveryFee();
+      const amountDue = Math.max(0, subtotal - discount) + deliveryFee;
+      document.getElementById('subtotalLabel').textContent = formatMoney(subtotal);
+      const totalDueLabel = document.getElementById('totalDueLabel');
+      if (totalDueLabel) totalDueLabel.textContent = formatMoney(amountDue);
+      document.getElementById('deliveryFeeLabel').textContent = formatMoney(deliveryFee);
+      const amountPaidValue = Number(document.getElementById('amountPaidInput').value || 0);
+      if (state.paymentAction === 'full') {
+        document.getElementById('amountPaidInput').value = amountDue.toFixed(2);
+      } else if (state.paymentAction === 'half') {
+        document.getElementById('amountPaidInput').value = (amountDue / 2).toFixed(2);
+      } else if (state.paymentAction === 'none') {
+        document.getElementById('amountPaidInput').value = '0';
+      }
+      if (state.paymentAction === 'full' && amountPaidValue === 0) {
+        document.getElementById('amountPaidInput').value = amountDue.toFixed(2);
+      }
+    }
+
+    function applyPaymentButtons() {
+      document.querySelectorAll('.pay-btn[data-pay]').forEach(btn => btn.classList.toggle('active', btn.dataset.pay === state.paymentAction));
+      document.querySelectorAll('.pay-btn[data-method]').forEach(btn => btn.classList.toggle('active', btn.dataset.method === state.selectedPaymentMethod));
+    }
+
+    function setAmountPaidByAction() {
+      const subtotal = state.currentCart.reduce((sum, item) => sum + (Number(item.qty) * Number(item.sell_rate || 0)), 0);
+      const discount = Number(document.getElementById('discountInput').value || 0);
+      const amountDue = Math.max(0, subtotal - discount) + calculateDeliveryFee();
+      if (state.paymentAction === 'full') {
+        document.getElementById('amountPaidInput').value = amountDue.toFixed(2);
+      } else if (state.paymentAction === 'half') {
+        document.getElementById('amountPaidInput').value = (amountDue / 2).toFixed(2);
+      } else {
+        document.getElementById('amountPaidInput').value = '0';
+      }
+    }
+
+    function confirmPrintInvoice() {
+      showModal('Confirm sale', 'Save this sale and print the invoice?', 'Confirm');
+      const modal = document.getElementById('modalRoot');
+      const confirmBtn = document.getElementById('modalConfirmBtn');
+      const cancelBtn = document.getElementById('modalCancelBtn');
+
+      confirmBtn.onclick = function () {
+        modal.classList.remove('show');
+        saveCurrentSale(true);
+      };
+
+      cancelBtn.onclick = function () {
+        modal.classList.remove('show');
+      };
+    }
+
+    function saveCurrentSale(printAfterSave) {
+      if (!state.currentCart.length) {
+        showToast('Choose at least one egg item before saving.');
+        return;
+      }
+      const customer = state.selectedCustomer || { id: 'CUS-001', name: 'Market Basket' };
+      const subtotal = state.currentCart.reduce((sum, item) => sum + (Number(item.qty) * Number(item.sell_rate || 0)), 0);
+      const discount = Number(document.getElementById('discountInput').value || 0);
+      const amountPaid = Number(document.getElementById('amountPaidInput').value || 0);
+      google.script.run.withSuccessHandler(function (result) {
+        showToast(result.dashboardRefreshWarning
+          ? 'Sale saved: ' + result.invoiceNumber + '. Dashboard refresh failed: ' + result.dashboardRefreshWarning
+          : 'Sale saved: ' + result.invoiceNumber);
+        localStorage.removeItem('itlog_cache_dashboard');
+        localStorage.removeItem('itlog_cache_reports');
+        localStorage.removeItem('itlog_cache_inventory');
+        localStorage.removeItem('itlog_cache_pos');
+        refreshAllData(true);
+        if (printAfterSave) {
+          printInvoice('a4', result.invoiceNumber);
+        }
+        state.currentCart = [];
+        document.getElementById('deliveryVehicle').value = 'none';
+        document.getElementById('deliveryDistance').value = '0';
+        document.getElementById('discountInput').value = '0';
+        document.getElementById('amountPaidInput').value = '0';
+        state.paymentAction = 'none';
+        applyPaymentButtons();
+        renderCart();
+        renderCartSummary();
+      }).withFailureHandler(function (err) {
+        showToast(err.message || 'Unable to save sale.');
+      }).saveSale({
+        customer_id: customer.id,
+        payment_method: state.selectedPaymentMethod,
+        amount_paid: amountPaid,
+        discount: discount,
+        delivery: {
+          vehicle: document.getElementById('deliveryVehicle').value,
+          distance_km: Number(document.getElementById('deliveryDistance').value || 0),
+          fee: calculateDeliveryFee()
+        },
+        cart: state.currentCart
+      });
+    }
+
+    function renderInventoryTable(data) {
+      const rows = Array.isArray(data) ? data : [];
+      const tableEl = document.getElementById('inventoryTable');
+      if (!tableEl) return;
+
+      if (window.jQuery && window.jQuery.fn && window.jQuery.fn.DataTable) {
+        const table = window.jQuery(tableEl).DataTable({
+          destroy: true,
+          paging: true,
+          pageLength: 10,
+          data: rows.map(function (row) {
+            return [
+              row.serial || '',
+              row.sub_cat || '',
+              row.w || '',
+              row.l || '',
+              row.cft || '',
+              row.qty || '',
+              row.status || '',
+              row.sell_rate || '',
+              row.image ? '<img class="thumb" src="' + row.image + '" />' : '<div class="thumb" style="display:grid;place-items:center;">🥚</div>'
+            ];
+          }),
+          columns: [
+            { title: 'Serial' },
+            { title: 'Car' },
+            { title: 'Width' },
+            { title: 'Length' },
+            { title: 'CFT' },
+            { title: 'Qty' },
+            { title: 'Status' },
+            { title: 'Sell Rate' },
+            { title: 'Image' }
+          ],
+          dom: 'Bfrtip',
+          buttons: ['copy', 'csv', 'pdf', 'print'],
+          language: {
+            search: 'Search:'
+          }
+        });
+        state.tableInstances.inventoryTable = table;
+        return;
+      }
+
+      tableEl.innerHTML = '<thead><tr><th>Serial</th><th>Car</th><th>Width</th><th>Length</th><th>CFT</th><th>Qty</th><th>Status</th><th>Sell Rate</th><th>Image</th></tr></thead><tbody>' + rows.map(function (row) {
+        return '<tr><td>' + (row.serial || '') + '</td><td>' + (row.sub_cat || '') + '</td><td>' + (row.w || '') + '</td><td>' + (row.l || '') + '</td><td>' + (row.cft || '') + '</td><td>' + (row.qty || '') + '</td><td>' + (row.status || '') + '</td><td>' + formatMoney(row.sell_rate || 0) + '</td><td>' + (row.image ? '<img class="thumb" src="' + row.image + '" />' : '<div class="thumb" style="display:grid;place-items:center;">🥚</div>') + '</td></tr>';
+      }).join('') + '</tbody>';
+    }
+
+    function renderReports(data) {
+      const safeData = data || {
+        salesSummary: [],
+        customerAnalysis: [{ name: 'No customer data', total: 0 }],
+        expenseSummary: [],
+        stockAging: []
+      };
+      const salesSummary = safeData.salesSummary || [];
+      const customerAnalysis = safeData.customerAnalysis || [];
+      const expenseSummary = safeData.expenseSummary || [];
+      const reportProfit = document.getElementById('reportProfit');
+      const reportSales = document.getElementById('reportSales');
+      const reportAging = document.getElementById('reportAging');
+
+      if (reportProfit) {
+        reportProfit.textContent = formatMoney((salesSummary.reduce((s, x) => s + (Number(x.total) || 0), 0) - expenseSummary.reduce((s, x) => s + (Number(x.amount) || 0), 0)) * 0.75);
+      }
+      if (reportSales) {
+        reportSales.textContent = formatMoney(salesSummary.reduce((s, x) => s + (Number(x.total) || 0), 0));
+      }
+      if (reportAging) {
+        reportAging.textContent = String((safeData.stockAging || []).length) + ' stock rows';
+      }
+
+      renderChart('reportCustomerChart', {
+        type: 'bar',
+        data: {
+          labels: customerAnalysis.map(c => c.name),
+          datasets: [{
+            label: 'Customer Spend',
+            data: customerAnalysis.map(c => c.total),
+            backgroundColor: '#2e73b8'
+          }]
+        },
+        options: { maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      });
+
+      renderChart('shipmentChart', {
+        type: 'radar',
+        data: {
+          labels: ['Car 01', 'Car 02', 'Car 03', 'Car 04', 'Car 05', 'Car 06'],
+          datasets: [{
+            label: 'Shipment P&L',
+            data: [82, 64, 58, 90, 73, 42],
+            borderColor: '#123d6d',
+            backgroundColor: 'rgba(18,61,109,0.2)'
+          }]
+        },
+        options: { maintainAspectRatio: false }
+      });
+
+      const tableData = salesSummary.map(item => [
+        item.id,
+        item.customer_id,
+        item.date,
+        formatMoney(item.total),
+        formatMoney(item.paid),
+        item.status
+      ]);
+
+      const reportsTable = document.getElementById('reportsTable');
+      if (reportsTable && window.jQuery && window.jQuery.fn && window.jQuery.fn.DataTable) {
+        window.jQuery(reportsTable).DataTable({
+          destroy: true,
+          data: tableData,
+          columns: [
+            { title: 'Sale ID' },
+            { title: 'Customer' },
+            { title: 'Date' },
+            { title: 'Total' },
+            { title: 'Paid' },
+            { title: 'Status' }
+          ],
+          dom: 'Bfrtip',
+          buttons: ['copy', 'csv', 'pdf', 'print'],
+          pageLength: 10
+        });
+      } else if (reportsTable) {
+        reportsTable.innerHTML = '<thead><tr><th>Sale ID</th><th>Customer</th><th>Date</th><th>Total</th><th>Paid</th><th>Status</th></tr></thead><tbody>' + tableData.map(function (row) {
+          return '<tr><td>' + (row[0] || '') + '</td><td>' + (row[1] || '') + '</td><td>' + (row[2] || '') + '</td><td>' + (row[3] || '') + '</td><td>' + (row[4] || '') + '</td><td>' + (row[5] || '') + '</td></tr>';
+        }).join('') + '</tbody>';
+      }
+      if (state.activeView === 'reports') {
+        requestAnimationFrame(function () {
+          forcePageTop();
+          requestAnimationFrame(forcePageTop);
+        });
+      }
+    }
+
+    function renderSettingsForm(settings) {
+      const safeSettings = settings || {};
+      const keys = [
+        ['business_name', 'Business Name'],
+        ['address', 'Address'],
+        ['phone', 'Phone'],
+        ['email', 'Email'],
+        ['currency', 'Currency'],
+        ['low_stock_threshold', 'Low Stock Threshold'],
+        ['default_discount', 'Default Discount'],
+        ['theme', 'Theme']
+      ];
+      const form = document.getElementById('settingsForm');
+      if (!form) return;
+      form.innerHTML = keys.map(([key, label]) => {
+        const value = safeSettings[key] == null ? '' : String(safeSettings[key]);
+        return `
+          <label>${label}</label>
+          <input class="input" data-key="${key}" value="${value.replace(/"/g, '&quot;')}" />
+        `;
+      }).join('') + '<button id="saveSettingsBtn" class="btn primary" type="button">Save Settings</button>';
+      document.getElementById('saveSettingsBtn').addEventListener('click', function () {
+        const payload = {};
+        keys.forEach(([key]) => {
+          const el = form.querySelector('[data-key="' + key + '"]');
+          payload[key] = el ? el.value : '';
+        });
+        google.script.run.withSuccessHandler(function () {
+          showToast('Settings saved.');
+          loadSettings(true);
+        }).withFailureHandler(function (err) {
+          showToast(err.message || 'Settings save failed');
+        }).saveSettings(payload);
+      });
+    }
+
+    function printInvoice(type, invoiceId) {
+      const settings = state.settingsCache || {};
+      const customer = state.selectedCustomer || { name: 'Walk-in Customer' };
+      const subtotal = state.currentCart.reduce((sum, item) => sum + (Number(item.qty) * Number(item.sell_rate || 0)), 0);
+      const discount = Number(document.getElementById('discountInput').value || 0);
+      const deliveryFee = calculateDeliveryFee();
+      const due = Math.max(0, subtotal - discount) + deliveryFee;
+      const deliveryVehicle = document.getElementById('deliveryVehicle').value;
+      const deliveryDistance = Number(document.getElementById('deliveryDistance').value || 0);
+      const html = `
+        <html>
+          <head><title>Invoice</title></head>
+          <body style="font-family:Arial;padding:24px;color:#111;">
+            <h2>${settings.business_name || 'Itlog ni JunPaul'}</h2>
+            <div>${settings.address || 'Purok 5, Tisa, Cebu City'}</div>
+            <div>${settings.phone || '+63 917 123 4567'}</div>
+            <hr />
+            <h3>Invoice ${invoiceId || 'POS-001'}</h3>
+            <div>Customer: ${customer.name}</div>
+            <div>Date: ${new Date().toLocaleDateString()}</div>
+            <table style="width:100%; border-collapse:collapse; margin-top:14px;">
+              <thead>
+                <tr><th align="left">Item</th><th align="right">Qty</th><th align="right">Rate</th><th align="right">Amount</th></tr>
+              </thead>
+              <tbody>
+                ${state.currentCart.map(item => `<tr><td>${item.name}</td><td align="right">${item.qty}</td><td align="right">${formatMoney(item.sell_rate)}</td><td align="right">${formatMoney(item.qty * item.sell_rate)}</td></tr>`).join('')}
+              </tbody>
+            </table>
+            <hr />
+            <div style="display:flex; justify-content:space-between;"><span>Subtotal</span><span>${formatMoney(subtotal)}</span></div>
+            <div style="display:flex; justify-content:space-between;"><span>Discount</span><span>${formatMoney(discount)}</span></div>
+            <div style="display:flex; justify-content:space-between;"><span>Delivery (${deliveryVehicle === 'none' ? 'Pickup' : deliveryVehicle + ', ' + deliveryDistance + ' km'})</span><span>${formatMoney(deliveryFee)}</span></div>
+            <div style="display:flex; justify-content:space-between; margin-top:8px;"><span>Total Due</span><strong>${formatMoney(due)}</strong></div>
+          </body>
+        </html>
+      `;
+      const win = window.open('', '_blank');
+      win.document.write(html);
+      win.document.close();
+      setTimeout(() => win.print(), 300);
+    }
+
+    function formatMoney(value) {
+      const normalized = Number(value) || 0;
+      return 'PHP ' + normalized.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
+    function parseCsv(text) {
+      const lines = text.split(/\r?\n/).filter(line => line.trim());
+      if (!lines.length) return [];
+      const headers = lines[0].split(',').map(h => h.trim());
+      return lines.slice(1).map(line => {
+        const values = line.split(',');
+        const row = {};
+        headers.forEach((header, idx) => row[header] = values[idx] ? values[idx].trim() : '');
+        return row;
+      });
+    }
+
+    function renderChart(canvasId, config) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const context = canvas.getContext('2d');
+      if (window.__charts && window.__charts[canvasId]) {
+        window.__charts[canvasId].destroy();
+      }
+      if (!window.__charts) window.__charts = {};
+      window.__charts[canvasId] = new Chart(context, config);
+    }
+
+    function showLoading(message) {
+      const modal = document.getElementById('modalRoot');
+      document.getElementById('modalTitle').textContent = 'Loading';
+      document.getElementById('modalBody').innerHTML = '<div class="muted">' + (message || 'Loading...') + '</div>';
+      document.getElementById('modalCancelBtn').classList.add('hide');
+      document.getElementById('modalConfirmBtn').classList.add('hide');
+      modal.classList.add('show');
+    }
+
+    function hideLoading() {
+      const modal = document.getElementById('modalRoot');
+      modal.classList.remove('show');
+      document.getElementById('modalCancelBtn').classList.remove('hide');
+      document.getElementById('modalConfirmBtn').classList.remove('hide');
+    }
+
+    function showModal(title, body, confirmText) {
+      const modal = document.getElementById('modalRoot');
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalBody').innerHTML = body;
+      document.getElementById('modalConfirmBtn').textContent = confirmText || 'OK';
+      document.getElementById('modalCancelBtn').classList.remove('hide');
+      modal.classList.add('show');
+      document.getElementById('modalConfirmBtn').onclick = function () {
+        modal.classList.remove('show');
+      };
+      document.getElementById('modalCancelBtn').onclick = function () {
+        modal.classList.remove('show');
+      };
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(function () {
+        toast.classList.remove('show');
+      }, 2500);
+    }
+
+    function logout() {
+      google.script.run.withSuccessHandler(function () {
+        window.location.reload();
+      }).logout();
+    }
+
+    function saveSettings(payload) {
+      google.script.run.withSuccessHandler(function () {
+        showToast('Settings saved.');
+      }).saveSettings(payload);
+    }
+
+    google.script.run.withFailureHandler(function (err) {
+      showToast(err.message || 'Unexpected error');
+    });
+
+    init();
+  </script>
+</body>
+</html>
